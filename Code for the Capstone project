@@ -1005,3 +1005,189 @@ if __name__ == '__main__':
 
 #_____________________________________________________________________________________________
 ###Lab 8: Machine Learning
+
+import piplite
+await piplite.install(['numpy'])
+await piplite.install(['pandas'])
+await piplite.install(['seaborn'])
+# Pandas is a software library written for the Python programming language for data manipulation and analysis.
+import pandas as pd
+# NumPy is a library for the Python programming language, adding support for large, multi-dimensional arrays and matrices, along with a large collection of high-level mathematical functions to operate on these arrays
+import numpy as np
+# Matplotlib is a plotting library for python and pyplot gives us a MatLab like plotting framework. We will use this in our plotter function to plot data.
+import matplotlib.pyplot as plt
+#Seaborn is a Python data visualization library based on matplotlib. It provides a high-level interface for drawing attractive and informative statistical graphics
+import seaborn as sns
+# Preprocessing allows us to standarsize our data
+from sklearn import preprocessing
+# Allows us to split our data into training and testing data
+from sklearn.model_selection import train_test_split
+# Allows us to test parameters of classification algorithms and find the best one
+from sklearn.model_selection import GridSearchCV
+# Logistic Regression classification algorithm
+from sklearn.linear_model import LogisticRegression
+# Support Vector Machine classification algorithm
+from sklearn.svm import SVC
+# Decision Tree classification algorithm
+from sklearn.tree import DecisionTreeClassifier
+# K Nearest Neighbors classification algorithm
+from sklearn.neighbors import KNeighborsClassifier
+
+
+def plot_confusion_matrix(y,y_predict):
+    "this function plots the confusion matrix"
+    from sklearn.metrics import confusion_matrix
+
+    cm = confusion_matrix(y, y_predict)
+    ax= plt.subplot()
+    sns.heatmap(cm, annot=True, ax = ax); #annot=True to annotate cells
+    ax.set_xlabel('Predicted labels')
+    ax.set_ylabel('True labels')
+    ax.set_title('Confusion Matrix'); 
+    ax.xaxis.set_ticklabels(['did not land', 'land']); ax.yaxis.set_ticklabels(['did not land', 'landed']) 
+    plt.show() 
+
+#We load the data
+from js import fetch
+import io
+
+URL1 = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_2.csv"
+resp1 = await fetch(URL1)
+text1 = io.BytesIO((await resp1.arrayBuffer()).to_py())
+data = pd.read_csv(text1)
+data.head()
+data.shape
+URL2 = 'https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBM-DS0321EN-SkillsNetwork/datasets/dataset_part_3.csv'
+resp2 = await fetch(URL2)
+text2 = io.BytesIO((await resp2.arrayBuffer()).to_py())
+X = pd.read_csv(text2)
+X.head(10)
+
+
+Y = data['Class'].to_numpy()
+Y
+
+
+#Standardization 
+transform = preprocessing.StandardScaler()
+X = transform.fit(X).transform(X)
+
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=2)
+Y_test.shape #(18,)
+
+
+#Logistic regression
+parameters ={'C':[0.01,0.1,1],
+             'penalty':['l2'],
+             'solver':['lbfgs']} #limited-memory BFGS algorithm
+
+parameters ={"C":[0.01,0.1,1],'penalty':['l2'], 'solver':['lbfgs']}# l1 lasso l2 ridge
+lr=LogisticRegression()
+gridsearch_cv_lr = GridSearchCV(lr, parameters, scoring='accuracy', cv=10)
+logreg_cv = gridsearch_cv_lr.fit(X_train, Y_train)
+print("tuned hpyerparameters :(best parameters) ",logreg_cv.best_params_)
+lr_best_score = logreg_cv.best_score_
+print("accuracy :",logreg_cv.best_score_)
+#tuned hpyerparameters :(best parameters)  {'C': 0.01, 'penalty': 'l2', 'solver': 'lbfgs'}
+#accuracy : 0.8464285714285713
+lr_score = logreg_cv.score(X_test, Y_test)
+print(f"Logistic Regression - Accuracy using method score: {lr_score}")
+#Logistic Regression - Accuracy using method score: 0.8333333333333334
+
+#We look at the confusion matrix
+yhat=logreg_cv.predict(X_test)
+plot_confusion_matrix(Y_test,yhat) #The major problem here is false positives
+
+
+#Support Vector Machine
+parameters = {'kernel':('linear', 'rbf','poly','rbf', 'sigmoid'),
+              'C': np.logspace(-3, 3, 5),
+              'gamma':np.logspace(-3, 3, 5)}
+svm = SVC()
+gridsearch_cv_svm = GridSearchCV(svm, parameters, scoring='accuracy', cv=10)
+svm_cv = gridsearch_cv_svm.fit(X_train, Y_train)
+print("tuned hyperparameters :(best parameters) ",svm_cv.best_params_)
+svm_best_score = svm_cv.best_score_
+print("accuracy :",svm_best_score)
+#tuned hyperparameters :(best parameters)  {'C': 1.0, 'gamma': 0.03162277660168379, 'kernel': 'sigmoid'}
+#accuracy : 0.8482142857142856
+svm_score = svm_cv.score(X_test, Y_test)
+print(f"SVM - Accuracy using method score: {svm_score}")
+#SVM - Accuracy using method score: 0.8333333333333334
+yhat=svm_cv.predict(X_test)
+plot_confusion_matrix(Y_test,yhat)
+
+
+#Decision Tree Algorithm
+parameters = {'criterion': ['gini', 'entropy'],
+     'splitter': ['best', 'random'],
+     'max_depth': [2*n for n in range(1,10)],
+     'max_features': ['auto', 'sqrt'],
+     'min_samples_leaf': [1, 2, 4],
+     'min_samples_split': [2, 5, 10]}
+
+tree = DecisionTreeClassifier()
+gridsearch_cv_tree = GridSearchCV(tree, parameters, scoring='accuracy', cv=10)
+tree_cv = gridsearch_cv_tree.fit(X_train, Y_train)
+print("tuned hyperparameters :(best parameters) ",tree_cv.best_params_)
+tree_best_score = tree_cv.best_score_
+print("accuracy :",tree_best_score)
+#tuned hyperparameters :(best parameters)  {'criterion': 'gini', 'max_depth': 2, 'max_features': 'sqrt', 'min_samples_leaf': 1, 'min_samples_split': 10, 'splitter': 'best'}
+#accuracy : 0.8464285714285713
+tree_score = tree_cv.score(X_test, Y_test)
+print(f"Decision Tree - Accuracy using method score: {tree_score}")
+#Decision Tree - Accuracy using method score: 0.8333333333333334
+yhat = tree_cv.predict(X_test)
+plot_confusion_matrix(Y_test,yhat)
+
+
+
+#KNN
+parameters = {'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+              'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
+              'p': [1,2]}
+
+KNN = KNeighborsClassifier()
+gridsearch_cv_knn = GridSearchCV(KNN, parameters, scoring='accuracy', cv=10)
+knn_cv = gridsearch_cv_tree.fit(X_train, Y_train)
+print("tuned hyperparameters :(best parameters) ",knn_cv.best_params_)
+knn_best_score = knn_cv.best_score_
+print("accuracy :",knn_best_score)
+#tuned hyperparameters :(best parameters)  {'criterion': 'entropy', 'max_depth': 4, 'max_features': 'log2', 'min_samples_leaf': 2, 'min_samples_split': 2, 'splitter': 'random'}
+#accuracy : 0.8732142857142857
+knn_score = knn_cv.score(X_test, Y_test)
+print(f"KNN - Accuracy using method score: {knn_score}")
+#KNN - Accuracy using method score: 0.7222222222222222
+yhat = knn_cv.predict(X_test)
+plot_confusion_matrix(Y_test,yhat)
+
+
+
+#We want to determine the best algorithm
+algorithms = ['Logistic Regression', 'Support Vector Machine', 'Decision Tree', 'K Nearest Neighbours']
+scores = [lr_score, svm_score, tree_score, knn_score]
+best_scores = [lr_best_score, svm_best_score, tree_best_score, knn_best_score]
+column_names = ['Algorithm', 'Accuracy Score', 'Best Score']
+df = pd.DataFrame(list(zip(algorithms, scores, best_scores)),columns = column_names)
+df
+#	Algorithm	Accuracy Score	Best Score
+#0	Logistic Regression	0.833333	0.846429
+#1	Support Vector Machine	0.833333	0.848214
+#2	Decision Tree	0.833333	0.873214
+#3	K Nearest Neighbours	0.722222	0.873214
+
+#Plotting the best scores
+sns.set(style="whitegrid")
+plt.figure(figsize=(15,8))
+sns.barplot(x=algorithms, y=best_scores, palette="Blues")
+plt.title("Determining the Best Performing Classification Algorithm")
+plt.ylabel("Best Score")
+plt.show()
+
+
+#Plotting the accuracy scores
+plt.figure(figsize=(15,8))
+sns.barplot(x=algorithms, y=scores, palette="Blues")
+plt.title("Determining the Best Performing Classification Algorithm")
+plt.ylabel("Accuracy Score")
+plt.show()
