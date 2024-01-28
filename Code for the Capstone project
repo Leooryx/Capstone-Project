@@ -572,7 +572,7 @@ plt.show()
 
 ##Task 3: Relationship between success rate of each orbit type
 #We use groupby method on Orbit column and get the mean of Class column
-df_orbitsuccess = df.groupby('Orbit').mean().reset_index()
+df_orbitsuccess = df_orbitsuccess = df.groupby(by=['Orbit'])['Class'].mean().sort_values(ascending=False).reset_index()
 sns.barplot(data=df_orbitsuccess, x='Orbit', y='Class')
 plt.show()
 
